@@ -4,14 +4,16 @@ A browser-based street racing game in the spirit of *Need for Speed*: rival race
 
 ## Play
 
-Open `index.html` in a browser, or serve the folder with any static server:
+**▶ [Play Nitro Rush](https://hartj77-blip.github.io/Racer/)**
+
+To run it locally, open `index.html` in a browser, or serve the folder with any static server:
 
 ```sh
 python3 -m http.server 8000
 # then visit http://localhost:8000
 ```
 
-To publish it on GitHub Pages: **Settings → Pages → Deploy from branch**, and pick the branch and `/ (root)`.
+The link above is served by GitHub Pages. To turn Pages on: **Settings → Pages → Deploy from a branch**, then pick `main` and `/ (root)`.
 
 ## Controls
 
