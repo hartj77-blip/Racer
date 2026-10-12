@@ -9,7 +9,10 @@
 </head>
 <body>
   <div id="stage">
-    <canvas id="game" width="1280" height="720"></canvas>
+    <canvas id="game"></canvas>
+    <canvas id="fx"></canvas>
+    <div id="tags"></div>
+    <div id="nogl" class="overlay hidden"><div class="panel"><h1>WebGL needed</h1><p>Nitro Rush needs a browser with WebGL enabled.</p></div></div>
 
     <!-- In-race HUD -->
     <div id="hud" class="hidden">
@@ -25,6 +28,7 @@
         <canvas id="minimap" width="180" height="180"></canvas>
       </div>
       <div id="objective" class="hidden"></div>
+      <div id="wrong-way" class="hidden">WRONG WAY <small>press R to reset</small></div>
       <div id="drift-meter" class="hidden"><span>DRIFT</span><b id="drift-pts">0</b><em id="drift-mult">x1</em></div>
       <div class="hud-bl">
         <div id="heat">☆☆☆☆☆</div>
@@ -40,6 +44,7 @@
       </div>
       <div class="hud-buttons">
         <button id="pause-btn" aria-label="Pause">❚❚</button>
+        <button id="cam-btn" aria-label="Change camera">🎥</button>
         <button id="mute-btn" aria-label="Toggle sound">🔊</button>
       </div>
     </div>
@@ -82,6 +87,8 @@
           <div><kbd>↓</kbd><kbd>S</kbd> Brake</div>
           <div><kbd>←</kbd><kbd>→</kbd><kbd>A</kbd><kbd>D</kbd> Steer</div>
           <div><kbd>Space</kbd><kbd>Shift</kbd> Nitro</div>
+          <div><kbd>C</kbd> Camera</div>
+          <div><kbd>R</kbd> Reset car</div>
           <div><kbd>P</kbd> Pause</div>
           <div><kbd>M</kbd> Mute</div>
         </div>
@@ -171,11 +178,12 @@
     </div>
   </div>
 
+  <script src="js/vendor/three.min.js"></script>
   <script src="js/util.js"></script>
-  <script src="js/sprites.js"></script>
   <script src="js/audio.js"></script>
-  <script src="js/track.js"></script>
   <script src="js/career.js"></script>
-  <script src="js/game.js"></script>
+  <script src="js/cars3d.js"></script>
+  <script src="js/tracks3d.js"></script>
+  <script src="js/game3d.js"></script>
 </body>
 </html>
