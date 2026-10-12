@@ -32,7 +32,7 @@ const Sprites = (() => {
 
   // ---------------------------------------------------------------- cars
   // Rear view of a car. type: 'sport' | 'sedan' | 'van' | 'cop'
-  function car(opts) {
+  function carBase(opts) {
     const type = opts.type || 'sport';
     const w = 200;
     const h = type === 'van' ? 160 : 118;
@@ -50,9 +50,10 @@ const Sprites = (() => {
 
     const bodyTop = type === 'van' ? h * 0.1 : h * 0.44;
     const bodyBot = h - 12;
+    let roofY = bodyTop;
 
     if (type !== 'van') {
-      const roofY = type === 'sedan' || type === 'cop' ? h * 0.08 : h * 0.14;
+      roofY = type === 'sedan' || type === 'cop' ? h * 0.08 : h * 0.14;
       // cabin
       g.fillStyle = type === 'cop' ? '#15151a' : shade(body, -0.3);
       g.beginPath();
@@ -166,7 +167,169 @@ const Sprites = (() => {
       g.restore();
     }
 
+    const ly = (ty + 6) / h;
+    return {
+      canvas: c, w: w, h: h,
+      geo: { bodyTop, bodyBot, roofY },
+      lights: [{ x: 35 / w, y: ly }, { x: (w - 35) / w, y: ly }],
+    };
+  }
+
+  // Side of the car, seen when it is turned. Drawn for the left flank with
+  // the rear of the car on the right edge; the far (front) end shrinks
+  // towards the horizon so it reads as perspective, not a flat slab.
+  function sidePanel(base, side, opts) {
+    const { h, geo } = base;
+    const type = opts.type || 'sport';
+    const c = makeCanvas(side + 8, h), g = c.getContext('2d');
+    const col = type === 'cop' ? '#e8e8e8' : opts.color;
+    const bt = geo.bodyTop + 2, bb = geo.bodyBot - 2, rt = geo.roofY + 2;
+    const vy = h * 0.3;
+    const P = (u, y) => [side + 6 - (side + 6) * u, vy + (y - vy) * (1 - 0.3 * u)];
+    const poly = (pts, fill) => {
+      g.fillStyle = fill; g.beginPath();
+      pts.forEach(([u, y], i) => { const [x, yy] = P(u, y); i ? g.lineTo(x, yy) : g.moveTo(x, yy); });
+      g.closePath(); g.fill();
+    };
+    // ground shadow
+    g.fillStyle = 'rgba(0,0,0,0.45)';
+    g.beginPath(); g.ellipse(side * 0.5, h - 7, side * 0.6, 5, 0, 0, Math.PI * 2); g.fill();
+    // cabin / roof behind the glass
+    if (type === 'van') {
+      poly([[0, bt], [0, bb], [1, bb - 4], [1, bt + 8]], shade(col, -0.3));
+      poly([[0.08, bt + 12], [0.08, bt + 40], [0.9, bt + 38], [0.9, bt + 16]], '#121620');
+    } else {
+      poly([[0, bt], [0.1, rt], [0.78, rt + 4], [1, bt + 6]], type === 'cop' ? '#15151a' : shade(col, -0.45));
+      poly([[0.12, bt], [0.18, rt + 6], [0.72, rt + 9], [0.88, bt + 4]], '#1a2233');
+      poly([[0.34, rt + 8], [0.38, rt + 7], [0.36, bt + 2], [0.32, bt + 2]], type === 'cop' ? '#15151a' : shade(col, -0.45));
+      // lower body side
+      const grd = g.createLinearGradient(0, bt, 0, bb);
+      grd.addColorStop(0, shade(col, -0.12)); grd.addColorStop(1, shade(col, -0.5));
+      poly([[0, bt], [0, bb], [1, bb - 6], [1, bt + 8]], grd);
+      if (type === 'cop') poly([[0, bt], [0, bt + 18], [1, bt + 22], [1, bt + 8]], '#16161a');
+    }
+    if (opts.stripe) {
+      const [x1, y1] = P(0, bb - 26), [x2, y2] = P(1, bb - 26);
+      g.strokeStyle = opts.stripe; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+    }
+    // wheels (near rear, far front)
+    for (const u of [0.2, 0.82]) {
+      const [x, y] = P(u, bb - 4);
+      const k = 1 - 0.3 * u;
+      g.fillStyle = '#0b0b0d';
+      g.beginPath(); g.ellipse(x, y, Math.max(3, side * 0.11 * k), 15 * k, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#8a8d96';
+      g.beginPath(); g.ellipse(x, y, Math.max(1.5, side * 0.05 * k), 8 * k, 0, 0, Math.PI * 2); g.fill();
+    }
+    return c;
+  }
+
+  // Rear view, optionally yawed (-1..1) so the car's flank shows.
+  function car(opts) {
+    const base = carBase(opts);
+    const yaw = opts.yaw || 0;
+    if (!yaw) return { canvas: base.canvas, w: base.w, h: base.h, lights: base.lights, ax: 0.5 };
+    const side = Math.round(Math.abs(yaw) * 64);
+    const rearW = Math.round(base.w * (1 - 0.1 * Math.abs(yaw)));
+    const tw = side + rearW;
+    const c = makeCanvas(tw, base.h), g = c.getContext('2d');
+    const panel = sidePanel(base, side, opts);
+    let rx;
+    if (yaw > 0) {
+      g.drawImage(panel, 0, 0);
+      rx = side;
+    } else {
+      g.save(); g.translate(tw, 0); g.scale(-1, 1); g.drawImage(panel, 0, 0); g.restore();
+      rx = 0;
+    }
+    // the rear face is drawn on top, hiding the 8px overlap
+    g.drawImage(base.canvas, rx, 0, rearW, base.h);
+    const lights = base.lights.map(l => ({ x: (rx + l.x * rearW) / tw, y: l.y }));
+    return { canvas: c, w: tw, h: base.h, lights, ax: (rx + rearW / 2) / tw };
+  }
+
+  function glow(rgb) {
+    const s = 64;
+    const c = makeCanvas(s, s), g = c.getContext('2d');
+    const grd = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    grd.addColorStop(0, 'rgba(' + rgb + ',1)');
+    grd.addColorStop(0.25, 'rgba(' + rgb + ',0.5)');
+    grd.addColorStop(1, 'rgba(' + rgb + ',0)');
+    g.fillStyle = grd; g.fillRect(0, 0, s, s);
+    return c;
+  }
+
+  function containers(rand) {
+    const w = 360, rows = 1 + Math.floor(rand() * 3), boxH = 74, h = rows * boxH + 4;
+    const c = makeCanvas(w, h), g = c.getContext('2d');
+    const cols = ['#b5422c', '#2c6bb5', '#2f8f5b', '#c9a227', '#7a3fb5', '#5d6670', '#d06a1f'];
+    for (let r = 0; r < rows; r++) {
+      const y = h - (r + 1) * boxH;
+      const inset = r * (rand() * 20);
+      const col = cols[Math.floor(rand() * cols.length)];
+      g.fillStyle = col;
+      g.fillRect(inset, y, w - inset * 2, boxH - 2);
+      g.fillStyle = shade(col, -0.3);
+      for (let x = inset + 8; x < w - inset - 6; x += 14) g.fillRect(x, y + 4, 4, boxH - 10);
+      g.fillStyle = shade(col, 0.2);
+      g.fillRect(inset, y, w - inset * 2, 4);
+      g.fillStyle = 'rgba(255,255,255,0.65)';
+      g.font = 'bold 16px sans-serif';
+      g.fillText(['MAERS', 'EVERG', 'HAPAG', 'COSCO', 'NITRO'][Math.floor(rand() * 5)], inset + 18, y + 26);
+    }
     return { canvas: c, w: w, h: h };
+  }
+
+  function crane(rand) {
+    const w = 320, h = 640;
+    const c = makeCanvas(w, h), g = c.getContext('2d');
+    const col = rand() < 0.5 ? '#d8b22c' : '#c8402c';
+    g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 10;
+    // legs
+    g.beginPath(); g.moveTo(80, h); g.lineTo(110, 220); g.lineTo(140, h); g.stroke();
+    g.beginPath(); g.moveTo(190, h); g.lineTo(210, 220); g.lineTo(240, h); g.stroke();
+    g.lineWidth = 6;
+    for (let y = 280; y < h; y += 70) { g.beginPath(); g.moveTo(90, y); g.lineTo(235, y); g.stroke(); }
+    // boom
+    g.fillRect(0, 200, w, 22);
+    g.lineWidth = 4;
+    for (let x = 0; x < w; x += 22) { g.beginPath(); g.moveTo(x, 200); g.lineTo(x + 11, 222); g.stroke(); }
+    g.fillRect(150, 140, 16, 70);
+    g.fillStyle = '#2b2f38'; g.fillRect(118, 224, 50, 40);
+    g.fillStyle = '#ffd27a'; g.fillRect(124, 232, 38, 14);
+    g.save(); g.shadowColor = '#ff2020'; g.shadowBlur = 16; g.fillStyle = '#ff3030';
+    g.beginPath(); g.arc(158, 136, 6, 0, Math.PI * 2); g.fill(); g.restore();
+    return { canvas: c, w: w, h: h };
+  }
+
+  // Distant harbour silhouette: gantry cranes against the night sky
+  function harborLayer(width, height, rand) {
+    const c = makeCanvas(width, height), g = c.getContext('2d');
+    g.fillStyle = '#0b1019';
+    g.fillRect(0, height - 26, width, 26);
+    let x = 20;
+    while (x < width - 120) {
+      const ch = height * (0.5 + rand() * 0.45);
+      const cw = 60 + rand() * 50;
+      g.fillStyle = '#0d131e';
+      g.fillRect(x, height - ch, 6, ch);
+      g.fillRect(x + cw * 0.6, height - ch, 6, ch);
+      g.fillRect(x - cw * 0.5, height - ch, cw * 2.2, 8);
+      g.fillStyle = '#ff3a3a';
+      g.fillRect(x + cw * 0.3, height - ch - 6, 3, 3);
+      // container stacks
+      for (let k = 0; k < 4; k++) {
+        g.fillStyle = ['#1a2230', '#202a3a', '#161d29'][k % 3];
+        g.fillRect(x + k * 26, height - 26 - 14 * (1 + Math.floor(rand() * 3)), 24, 60);
+      }
+      x += cw + 60 + rand() * 120;
+    }
+    for (let i = 0; i < 60; i++) {
+      g.fillStyle = 'rgba(255,200,120,' + (0.3 + rand() * 0.5) + ')';
+      g.fillRect(rand() * width, height - 4 - rand() * 18, 2, 2);
+    }
+    return c;
   }
 
   // ------------------------------------------------------- roadside props
@@ -416,5 +579,5 @@ const Sprites = (() => {
     return c;
   }
 
-  return { car, lamp, palm, building, billboard, chevron, rock, bush, banner, skyline, mountains, shade, makeCanvas };
+  return { car, glow, containers, crane, harborLayer, lamp, palm, building, billboard, chevron, rock, bush, banner, skyline, mountains, shade, makeCanvas };
 })();

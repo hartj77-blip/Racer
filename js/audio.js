@@ -2,7 +2,7 @@
 // audio is unavailable.
 const Sound = (() => {
   let ac = null, master = null;
-  let engine = null, nitro = null, siren = null, rumble = null;
+  let engine = null, nitro = null, siren = null, rumble = null, skid = null, rain = null;
   let muted = false;
 
   function noiseBuffer() {
@@ -43,6 +43,8 @@ const Sound = (() => {
 
     nitro = loopNoise('bandpass', 1800, 0.8);
     rumble = loopNoise('lowpass', 220, 1);
+    skid = loopNoise('bandpass', 1400, 4);
+    rain = loopNoise('highpass', 3000, 0.5);
 
     const so = ac.createOscillator(); so.type = 'square';
     const sg = ac.createGain(); sg.gain.value = 0;
@@ -66,6 +68,9 @@ const Sound = (() => {
     set(engine.gain.gain, s.running ? 0.05 + s.throttle * 0.05 + s.rpm * 0.03 : 0);
     set(nitro.gain.gain, s.nitro ? 0.18 : 0);
     set(rumble.gain.gain, s.offroad ? 0.25 : 0);
+    set(skid.gain.gain, (s.skid || 0) * 0.35);
+    set(skid.filter.frequency, 1100 + (s.skid || 0) * 500);
+    set(rain.gain.gain, s.rain ? 0.07 : 0);
     const t = ac.currentTime;
     set(siren.osc.frequency, 760 + 280 * Math.sin(t * Math.PI * 2 * 0.9));
     set(siren.gain.gain, s.siren * 0.06);
@@ -106,9 +111,26 @@ const Sound = (() => {
     src.start(); src.stop(ac.currentTime + 0.45);
   }
 
+  // exhaust backfire on upshift
+  function pop() {
+    if (!ac) return;
+    const src = ac.createBufferSource(); src.buffer = noiseBuffer();
+    const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 400;
+    const gn = ac.createGain();
+    gn.gain.setValueAtTime(0.4, ac.currentTime);
+    gn.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.12);
+    src.connect(f); f.connect(gn); gn.connect(master);
+    src.start(); src.stop(ac.currentTime + 0.15);
+  }
+
+  function chime(notes) {
+    if (!ac) return;
+    notes.forEach((n, i) => setTimeout(() => blip(n, 0.18, 'triangle', 0.18), i * 90));
+  }
+
   function silence() {
     if (!ac) return;
-    update({ rpm: 0, throttle: 0, running: false, nitro: false, offroad: false, siren: 0 });
+    update({ rpm: 0, throttle: 0, running: false, nitro: false, offroad: false, siren: 0, skid: 0, rain: false });
   }
 
   function toggleMute() {
@@ -117,5 +139,5 @@ const Sound = (() => {
     return muted;
   }
 
-  return { init, update, blip, crash, whoosh, silence, toggleMute, get muted() { return muted; } };
+  return { init, update, blip, crash, whoosh, pop, chime, silence, toggleMute, get muted() { return muted; } };
 })();

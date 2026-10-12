@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Nitro Rush</title>
-  <meta name="description" content="A browser-based street racing game: rivals, traffic, nitro and police pursuits.">
+  <meta name="description" content="A browser-based street racing game: rivals, traffic, drifting, nitro, police pursuits and a career mode.">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -22,7 +22,10 @@
         <div><label>TIME</label><span id="hud-time">0:00.00</span></div>
         <div><label>LAP</label><span id="hud-laptime">0:00.00</span></div>
         <div><label>BEST</label><span id="hud-best">--:--.--</span></div>
+        <canvas id="minimap" width="180" height="180"></canvas>
       </div>
+      <div id="objective" class="hidden"></div>
+      <div id="drift-meter" class="hidden"><span>DRIFT</span><b id="drift-pts">0</b><em id="drift-mult">x1</em></div>
       <div class="hud-bl">
         <div id="heat">☆☆☆☆☆</div>
         <div id="pursuit" class="hidden">
@@ -32,11 +35,7 @@
         </div>
       </div>
       <div class="hud-br">
-        <div class="speedo">
-          <span id="hud-speed">0</span><small>KM/H</small>
-          <div class="gear">GEAR <b id="hud-gear">N</b></div>
-        </div>
-        <div class="rpm"><span id="rpm-fill"></span></div>
+        <canvas id="gauge" width="220" height="220"></canvas>
         <div id="nitro"><label>NOS</label><span class="track"><span id="nitro-fill"></span></span></div>
       </div>
       <div class="hud-buttons">
@@ -56,34 +55,28 @@
       </div>
       <div class="t-right">
         <button data-key="nitro" class="nos" aria-label="Nitro">NOS</button>
-        <button data-key="down" class="brake" aria-label="Brake">BRK</button>
+        <button data-key="down" class="brake" aria-label="Brake / drift">BRK</button>
         <button data-key="up" class="gas" aria-label="Accelerate">GAS</button>
       </div>
     </div>
 
-    <!-- Main menu -->
+    <!-- Menus -->
     <div id="menu" class="overlay">
-      <div class="panel wide">
+      <!-- Title -->
+      <div class="panel wide" id="screen-main">
         <h1 class="logo">NITRO<span>RUSH</span></h1>
-        <p class="tag">Street racing · Rivals · Cops · Nitro</p>
-
-        <h2>Choose your ride</h2>
-        <div id="car-select" class="cards"></div>
-
-        <h2>Choose a track</h2>
-        <div id="track-select" class="cards"></div>
-
-        <div class="options">
-          <div class="opt"><span>Laps</span>
-            <div id="laps-select" class="seg">
-              <button data-laps="1">1</button><button data-laps="3">3</button><button data-laps="5">5</button>
-            </div>
-          </div>
-          <div class="opt"><span>Police</span><button id="cops-toggle" class="toggle">ON</button></div>
+        <p class="tag">Street racing · Drifting · Cops · Nitro</p>
+        <div class="main-buttons">
+          <button class="big-btn career" data-screen="career">
+            <b>CAREER</b><small id="main-career-sub">$0</small>
+          </button>
+          <button class="big-btn quick" data-screen="quick">
+            <b>QUICK RACE</b><small>Any car · any track</small>
+          </button>
+          <button class="big-btn garage" data-screen="garage">
+            <b>GARAGE</b><small>Buy cars · upgrades</small>
+          </button>
         </div>
-
-        <button id="start-btn" class="cta">START RACE</button>
-
         <div class="controls">
           <div><kbd>↑</kbd><kbd>W</kbd> Gas</div>
           <div><kbd>↓</kbd><kbd>S</kbd> Brake</div>
@@ -92,7 +85,50 @@
           <div><kbd>P</kbd> Pause</div>
           <div><kbd>M</kbd> Mute</div>
         </div>
-        <p class="hint">Earn nitro with near misses, overtakes and carving through corners. Crashes and reckless speed raise your heat. Lose the cops by out-running them or making them crash into traffic. Slow down near a cop and you'll be busted.</p>
+        <ul class="tips">
+          <li><b>Drift:</b> tap brake while steering at speed, then hold the turn. Longer drifts build a multiplier and fill your nitro.</li>
+          <li><b>Perfect start:</b> hold the gas during the countdown and keep the needle in the green zone when the lights go.</li>
+          <li><b>Nitro</b> also comes from near misses, overtakes and evading cops.</li>
+          <li><b>Heat</b> rises when you crash or drive flat out. Lose the police by outrunning them or making them crash into traffic. Slow down near a cop and you'll be <b>busted</b>.</li>
+        </ul>
+      </div>
+
+      <!-- Quick race -->
+      <div class="panel wide hidden" id="screen-quick">
+        <div class="screen-head"><button class="back" data-screen="main">‹ BACK</button><h2>QUICK RACE</h2><span></span></div>
+        <h3 class="sect">Choose your ride</h3>
+        <div id="car-select" class="cards"></div>
+        <h3 class="sect">Choose a track</h3>
+        <div id="track-select" class="cards"></div>
+        <div class="options">
+          <div class="opt"><span>Laps</span>
+            <div id="laps-select" class="seg">
+              <button data-laps="1">1</button><button data-laps="3">3</button><button data-laps="5">5</button>
+            </div>
+          </div>
+          <div class="opt"><span>Police</span><button id="cops-toggle" class="toggle">ON</button></div>
+        </div>
+        <button id="start-btn" class="cta">START RACE</button>
+      </div>
+
+      <!-- Career -->
+      <div class="panel wide hidden" id="screen-career">
+        <div class="screen-head"><button class="back" data-screen="main">‹ BACK</button><h2>CAREER</h2><span class="cash" id="career-cash">$0</span></div>
+        <div class="career-bar">
+          <div id="career-car" class="ride"></div>
+          <button class="ghost small-ghost" data-screen="garage">GARAGE ›</button>
+        </div>
+        <div id="event-list"></div>
+        <button id="reset-career" class="link">Reset career</button>
+      </div>
+
+      <!-- Garage -->
+      <div class="panel wide hidden" id="screen-garage">
+        <div class="screen-head"><button class="back" data-screen="career">‹ CAREER</button><h2>GARAGE</h2><span class="cash" id="garage-cash">$0</span></div>
+        <div id="garage-cars" class="cards"></div>
+        <h3 class="sect" id="upgrade-title">Upgrades</h3>
+        <div id="upgrade-list"></div>
+        <p class="hint">Upgrades and purchased cars are used in Career events. Quick Race uses stock cars.</p>
       </div>
     </div>
 
@@ -100,8 +136,10 @@
     <div id="results" class="overlay hidden">
       <div class="panel">
         <h1 id="res-title">YOU WIN!</h1>
+        <p id="res-sub"></p>
         <table id="res-table"></table>
         <div id="res-stats" class="stat-row"></div>
+        <div id="res-cash" class="hidden"></div>
         <div class="btns">
           <button id="again-btn" class="cta">RACE AGAIN</button>
           <button id="menu-btn" class="ghost">MAIN MENU</button>
@@ -127,7 +165,7 @@
         <h1>PAUSED</h1>
         <div class="btns">
           <button id="resume-btn" class="cta">RESUME</button>
-          <button id="quit-btn" class="ghost">QUIT TO MENU</button>
+          <button id="quit-btn" class="ghost">QUIT</button>
         </div>
       </div>
     </div>
@@ -137,6 +175,7 @@
   <script src="js/sprites.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/track.js"></script>
+  <script src="js/career.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>
