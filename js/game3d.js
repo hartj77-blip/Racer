@@ -489,6 +489,12 @@
     if (racing) {
       const along = fx * smp.tx + fz * smp.tz;
       P.wrong = along < -0.3 && Math.abs(vf) > 3 ? P.wrong + dt : 0;
+      // Wedged against a wall or car: pressing gas or brake but going nowhere.
+      // Warn, then put the car back on the road so nobody is stuck (phones have no R key).
+      P.stuck = Math.abs(vf) < 2 && (c.throttle || c.brake) ? (P.stuck || 0) + dt : 0;
+      if (P.stuck > 2 && !P.stuckWarned) { P.stuckWarned = true; popup('STUCK? RESETTING…', 'bad'); }
+      if (P.stuck > 4 || P.wrong > 8) { resetPlayer(); P.resets = (P.resets || 0) + 1; }
+      if (P.stuck === 0) P.stuckWarned = false;
     }
     P.maxSpeed = Math.max(P.maxSpeed, vf);
   }
@@ -512,7 +518,7 @@
   function resetPlayer() {
     track.sampleAt(P.s, tmp);
     P.x = tmp.x; P.z = tmp.z; P.h = tmp.h; P.vx = P.vz = 0; P.speed = 0; P.d = 0;
-    P.drift = false; P.wrong = 0; P.camH = tmp.h;
+    P.drift = false; P.wrong = 0; P.stuck = 0; P.camH = tmp.h;
   }
 
   function onLap() {
@@ -1563,6 +1569,7 @@
   $('quit-btn').onclick = () => openMenu(race.mode === 'career' ? 'career' : 'main');
   $('pause-btn').onclick = () => setPaused(true);
   $('cam-btn').onclick = cycleCam;
+  $('reset-btn').onclick = () => { if (state === 'race') resetPlayer(); };
   $('mute-btn').onclick = () => { $('mute-btn').textContent = Sound.toggleMute() ? '🔇' : '🔊'; };
   $('cops-toggle').onclick = () => { quick.cops = !quick.cops; renderQuick(); };
   document.querySelectorAll('#laps-select button').forEach(b => { b.onclick = () => { quick.laps = Number(b.dataset.laps); renderQuick(); }; });

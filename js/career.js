@@ -37,11 +37,39 @@ const Career = (() => {
     return { v: 1, cash: 1500, owned: ['vortex'], car: 'vortex', upgrades: {}, done: {} };
   }
 
+  // Repair anything odd in saved data instead of letting it crash the game.
+  // A save that can't be read at all is kept under a backup key.
+  function clean(d) {
+    const f = fresh();
+    const obj = x => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
+    const out = { v: 1 };
+    out.cash = Number.isFinite(d.cash) && d.cash >= 0 ? Math.floor(d.cash) : f.cash;
+    out.owned = (Array.isArray(d.owned) ? d.owned : []).filter(id => id in CAR_PRICES);
+    if (!out.owned.includes('vortex')) out.owned.unshift('vortex');
+    out.car = out.owned.includes(d.car) ? d.car : out.owned[0];
+    out.upgrades = {};
+    for (const [car, ups] of Object.entries(obj(d.upgrades))) {
+      if (!(car in CAR_PRICES)) continue;
+      out.upgrades[car] = {};
+      for (const u of UPGRADES) {
+        const lvl = obj(ups)[u.id];
+        if (Number.isInteger(lvl) && lvl > 0) out.upgrades[car][u.id] = Math.min(lvl, u.costs.length);
+      }
+    }
+    out.done = {};
+    for (const ev of EVENTS) if (obj(d.done)[ev.id]) out.done[ev.id] = true;
+    return out;
+  }
+
   function load() {
+    let raw = null;
+    try { raw = localStorage.getItem(KEY); } catch (e) { return fresh(); }
+    if (!raw) return fresh();
     try {
-      const d = JSON.parse(localStorage.getItem(KEY));
-      if (d && d.v === 1) return d;
-    } catch (e) { /* ignore */ }
+      const d = JSON.parse(raw);
+      if (d && d.v === 1) return clean(d);
+    } catch (e) { /* fall through */ }
+    try { localStorage.setItem(KEY + ':backup', raw); } catch (e) { /* ignore */ }
     return fresh();
   }
 
