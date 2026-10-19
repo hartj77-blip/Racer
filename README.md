@@ -24,7 +24,7 @@ The link above is served by GitHub Pages. To turn Pages on: **Settings → Pages
 | Steer | `←` `→` / `A` `D` | ◀ ▶ |
 | Nitro | `Space` / `Shift` / `N` | NOS |
 | Change camera (chase / far / bumper) | `C` | 🎥 |
-| Reset car onto the track | `R` | |
+| Reset car onto the track | `R` | ⟲ |
 | Pause | `P` / `Esc` | ❚❚ |
 | Mute | `M` | 🔊 |
 
@@ -44,6 +44,7 @@ The link above is served by GitHub Pages. To turn Pages on: **Settings → Pages
 - **AI rivals** with name tags. They take racing lines, brake for corners, pass traffic and use bursts of speed.
 - **Traffic** to weave through. Near misses, overtakes and drifts fill your **nitro**.
 - **Heat and police pursuits:** cops ram you and try to box you in. Make them crash into traffic, outrun them, or lose them in a tunnel. Slow down near one and you're **BUSTED**.
+- **Auto-recovery:** if the car is wedged and going nowhere for a few seconds, or driving the wrong way for a long time, it's put back on the road.
 - **HUD:** analogue tachometer, minimap, lap timing, standings and a wrong-way warning.
 
 ## Code layout
