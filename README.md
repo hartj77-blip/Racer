@@ -58,3 +58,7 @@ The link above is served by GitHub Pages. To turn Pages on: **Settings → Pages
 | `js/cars3d.js` | Low-poly 3D car models built from extruded profiles |
 | `js/tracks3d.js` | Spline track layouts, road and terrain geometry, tunnels, scenery, sky and lighting |
 | `js/game3d.js` | Game loop, car physics, drifting, AI, police, camera, effects, HUD and menus |
+
+## License
+
+MIT, see [LICENSE](LICENSE). three.js keeps its own MIT licence in `js/vendor/three.LICENSE`.
